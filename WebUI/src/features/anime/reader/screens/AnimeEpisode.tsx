@@ -101,6 +101,10 @@ export const AnimeEpisode = () => {
         `anime-${id ?? 'unknown'}-jimaku-title-override`,
         null,
     );
+    const [subtitleSearchType, setSubtitleSearchType] = useLocalStorage<'anime' | 'drama'>(
+        `anime-${id ?? 'unknown'}-subtitle-search-type`,
+        'anime',
+    );
     const [isJimakuTitleDialogOpen, setIsJimakuTitleDialogOpen] = useState(false);
     const [jimakuDraftTitle, setJimakuDraftTitle] = useState('');
     const [jimakuTitleSuggestions, setJimakuTitleSuggestions] = useState<JimakuTitleSuggestion[]>([]);
@@ -295,8 +299,8 @@ export const AnimeEpisode = () => {
     const isLikelyHlsUrl = (url?: string | null) => Boolean(url && /m3u8?/i.test(url));
     const isHlsSource = Boolean(
         currentVideo?.isHls ||
-            isLikelyHlsUrl(currentVideo?.proxyUrl) ||
-            isLikelyHlsUrl(currentVideo?.videoUrl),
+        isLikelyHlsUrl(currentVideo?.proxyUrl) ||
+        isLikelyHlsUrl(currentVideo?.videoUrl),
     );
     const proxyBaseUrl = currentVideo?.proxyUrl
         ? currentVideo.proxyUrl.startsWith('http')
@@ -423,6 +427,7 @@ export const AnimeEpisode = () => {
             title: resolvedTitle,
             anilistId: shouldUseAnilistId ? animeAnilistId : null,
             episodeNumber: numericEpisodeNumber,
+            searchType: subtitleSearchType,
         })
             .then((files) => {
                 if (isMounted) {
@@ -444,7 +449,7 @@ export const AnimeEpisode = () => {
         return () => {
             isMounted = false;
         };
-    }, [settings.jimakuApiKey, jimakuTitleOverride, animeTitle, animeAnilistId, numericEpisodeNumber]);
+    }, [settings.jimakuApiKey, jimakuTitleOverride, animeTitle, animeAnilistId, numericEpisodeNumber, subtitleSearchType]);
 
     const openJimakuTitleDialog = useCallback(() => {
         const currentTitle = jimakuTitleOverride?.trim() || animeTitle || '';
@@ -503,6 +508,7 @@ export const AnimeEpisode = () => {
             title: queryTitle,
             anilistId: animeAnilistId,
             limit: 20,
+            searchType: subtitleSearchType,
         })
             .then((entries) => {
                 if (isActive) {
@@ -597,8 +603,11 @@ export const AnimeEpisode = () => {
             onVideoChange={handleVideoChange}
             subtitleTracks={combinedSubtitleTracks}
             subtitleTracksReady={subtitleTracksReady}
+            subtitleTracksVersion={`${subtitleSearchType}-${jimakuFiles.length}`}
             jimakuTitleOverride={jimakuTitleOverride}
             onRequestJimakuTitleOverride={openJimakuTitleDialog}
+            subtitleSearchType={subtitleSearchType}
+            onSubtitleSearchTypeChange={setSubtitleSearchType}
             title={episodeTitle}
             animeId={id ?? 'unknown'}
             fillHeight

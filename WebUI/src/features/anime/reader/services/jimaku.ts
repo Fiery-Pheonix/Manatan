@@ -1,3 +1,5 @@
+import { CHAPTER_SORT_OPTIONS_TO_TRANSLATION_KEY } from "@/features/chapter/Chapter.constants";
+
 export type JimakuEntry = {
     id: number;
     name: string;
@@ -27,6 +29,7 @@ type JimakuSearchOptions = {
     apiKey: string;
     query?: string | null;
     anilistId?: number | null;
+    searchType?: 'anime' | 'drama';
 };
 
 type JimakuEpisodeOptions = {
@@ -34,6 +37,7 @@ type JimakuEpisodeOptions = {
     title?: string | null;
     anilistId?: number | null;
     episodeNumber: number;
+    searchType?: 'anime' | 'drama';
 };
 
 type JimakuSuggestionOptions = {
@@ -41,6 +45,7 @@ type JimakuSuggestionOptions = {
     title?: string | null;
     anilistId?: number | null;
     limit?: number;
+    searchType?: 'anime' | 'drama';
 };
 
 const JIMAKU_BASE_URL = 'https://jimaku.cc/api';
@@ -320,14 +325,17 @@ const pickBestTitleCandidate = (entry: JimakuEntry, titleVariants: string[]) => 
     };
 };
 
-const searchJimakuEntries = async ({ apiKey, query, anilistId }: JimakuSearchOptions) => {
+const searchJimakuEntries = async ({ apiKey, query, anilistId, searchType = 'anime' }: JimakuSearchOptions) => {
+    const isAnime = searchType === 'anime';
     const url = buildUrl('/entries/search', {
-        anime: 'true',
+        anime: isAnime ? 'true' : 'false',
         query: query?.trim() || '',
         anilist_id: anilistId ? String(anilistId) : '',
     });
 
     const response = await fetch(url, { headers: buildHeaders(apiKey) });
+    console.log('Jimaku search response', { url, response });
+    console.log('url:', url);
     if (!response.ok) {
         throw new Error(`Jimaku search failed (${response.status})`);
     }
@@ -341,13 +349,16 @@ const fetchJimakuEpisodeFiles = async (apiKey: string, entryId: number, episodeN
     }
     const url = buildUrl(`/entries/${entryId}/files`, params);
     const response = await fetch(url, { headers: buildHeaders(apiKey) });
+
+    console.log('Jimaku file response', { url, response });
+    console.log('url:', url);
     if (!response.ok) {
         throw new Error(`Jimaku files failed (${response.status})`);
     }
     return (await response.json()) as JimakuFileEntry[];
 };
 
-export const loadJimakuEpisodeFiles = async ({ apiKey, title, anilistId, episodeNumber }: JimakuEpisodeOptions) => {
+export const loadJimakuEpisodeFiles = async ({ apiKey, title, anilistId, episodeNumber, searchType = 'anime' }: JimakuEpisodeOptions) => {
     if (!apiKey) {
         return [];
     }
@@ -356,13 +367,13 @@ export const loadJimakuEpisodeFiles = async ({ apiKey, title, anilistId, episode
     const entryMap = new Map<number, JimakuEntry>();
 
     for (const query of queryList) {
-        const entries = await searchJimakuEntries({ apiKey, query, anilistId });
+        const entries = await searchJimakuEntries({ apiKey, query, anilistId, searchType });
         entries.forEach((entry) => entryMap.set(entry.id, entry));
     }
 
     let entries = Array.from(entryMap.values());
     if (!entries.length && anilistId) {
-        entries = await searchJimakuEntries({ apiKey, query: '', anilistId });
+        entries = await searchJimakuEntries({ apiKey, query: '', anilistId, searchType });
     }
 
     let candidateEntries = entries;
@@ -402,6 +413,7 @@ export const loadJimakuTitleSuggestions = async ({
     title,
     anilistId,
     limit = 20,
+    searchType = 'anime',
 }: JimakuSuggestionOptions) => {
     if (!apiKey) {
         return [];
@@ -412,13 +424,13 @@ export const loadJimakuTitleSuggestions = async ({
     const entryMap = new Map<number, JimakuEntry>();
 
     for (const query of queryList) {
-        const entries = await searchJimakuEntries({ apiKey, query, anilistId });
+        const entries = await searchJimakuEntries({ apiKey, query, anilistId, searchType });
         entries.forEach((entry) => entryMap.set(entry.id, entry));
     }
 
     let entries = Array.from(entryMap.values());
     if (!entries.length && anilistId) {
-        entries = await searchJimakuEntries({ apiKey, query: '', anilistId });
+        entries = await searchJimakuEntries({ apiKey, query: '', anilistId, searchType });
     }
 
     let candidateEntries = entries;
